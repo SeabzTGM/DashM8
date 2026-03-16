@@ -1,0 +1,283 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum JobStatus {
+  QUOTE
+  WORK_ORDER
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SUBMITTED
+  AUTHORISED
+  PAID
+  VOIDED
+  DELETED
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+  VOIDED
+}
+
+enum AttentionType {
+  COMPLETED_NOT_INVOICED
+  INVOICED_NOT_PAID
+  OVERDUE_JOB
+  HIGH_MATERIAL_COST
+  LOW_MARGIN
+  STALE_JOB
+  MISSING_STAFF
+}
+
+model Staff {
+  id                  String      @id @default(cuid())
+  servicem8StaffUuid  String?     @unique
+  externalName        String?
+  firstName           String?
+  lastName            String?
+  email               String?
+  phone               String?
+  isActive            Boolean     @default(true)
+  role                String?
+  employmentType      String?
+  hourlyCostRate      Decimal?    @db.Decimal(10, 2)
+  hourlyBillableRate  Decimal?    @db.Decimal(10, 2)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  assignedJobs        Job[]       @relation("AssignedStaff")
+  metrics             StaffMetricSnapshot[]
+}
+
+model Customer {
+  id                  String      @id @default(cuid())
+  servicem8CompanyUuid String?    @unique
+  xeroContactId       String?     @unique
+  name                String
+  legalName           String?
+  email               String?
+  phone               String?
+  mobile              String?
+  suburb              String?
+  state               String?
+  postcode            String?
+  isActive            Boolean     @default(true)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  jobs                Job[]
+  invoices            Invoice[]
+}
+
+model Job {
+  id                  String      @id @default(cuid())
+  servicem8JobUuid    String      @unique
+  generatedJobNumber  String?
+  title               String?
+  description         String?
+  category            String?
+  status              JobStatus
+  priority            String?
+  requiresAttention   Boolean     @default(false)
+
+  customerId          String?
+  assignedStaffId     String?
+
+  createdAtSource     DateTime?
+  scheduledStart      DateTime?
+  scheduledEnd        DateTime?
+  startedAt           DateTime?
+  completedAt         DateTime?
+  invoicedAt          DateTime?
+  lastActivityAt      DateTime?
+
+  quotedAmount        Decimal?    @db.Decimal(12, 2)
+  estimatedLaborCost  Decimal?    @db.Decimal(12, 2)
+  estimatedMaterialCost Decimal?  @db.Decimal(12, 2)
+  actualLaborCost     Decimal?    @db.Decimal(12, 2)
+  actualMaterialCost  Decimal?    @db.Decimal(12, 2)
+  actualRevenue       Decimal?    @db.Decimal(12, 2)
+  grossMarginAmount   Decimal?    @db.Decimal(12, 2)
+  grossMarginPct      Decimal?    @db.Decimal(6, 2)
+
+  syncUpdatedAt       DateTime?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  customer            Customer?   @relation(fields: [customerId], references: [id])
+  assignedStaff       Staff?      @relation("AssignedStaff", fields: [assignedStaffId], references: [id])
+
+  materials           JobMaterial[]
+  statusHistory       JobStatusHistory[]
+  invoices            Invoice[]
+  attentionFlags      JobAttentionFlag[]
+
+  @@index([status])
+  @@index([completedAt])
+  @@index([assignedStaffId, status])
+  @@index([customerId])
+}
+
+model JobStatusHistory {
+  id                  String      @id @default(cuid())
+  jobId               String
+  status              JobStatus
+  changedAt           DateTime
+  source              String?
+  note                String?
+  createdAt           DateTime    @default(now())
+
+  job                 Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, changedAt])
+}
+
+model JobMaterial {
+  id                  String      @id @default(cuid())
+  jobId               String
+  servicem8MaterialUuid String?   @unique
+  itemCode            String?
+  name                String
+  description         String?
+  quantity            Decimal     @db.Decimal(10, 2)
+  unitCost            Decimal?    @db.Decimal(12, 2)
+  unitSell            Decimal?    @db.Decimal(12, 2)
+  totalCost           Decimal?    @db.Decimal(12, 2)
+  totalSell           Decimal?    @db.Decimal(12, 2)
+  sourceUpdatedAt     DateTime?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  job                 Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+}
+
+model Invoice {
+  id                  String      @id @default(cuid())
+  xeroInvoiceId       String?     @unique
+  invoiceNumber       String?
+  sourceSystem        String      @default("XERO")
+  status              InvoiceStatus
+  paymentStatus       PaymentStatus @default(PENDING)
+
+  customerId          String?
+  jobId               String?
+
+  issueDate           DateTime?
+  dueDate             DateTime?
+  paidAt              DateTime?
+
+  subTotal            Decimal?    @db.Decimal(12, 2)
+  taxTotal            Decimal?    @db.Decimal(12, 2)
+  total               Decimal?    @db.Decimal(12, 2)
+  amountPaid          Decimal?    @db.Decimal(12, 2)
+  amountDue           Decimal?    @db.Decimal(12, 2)
+
+  reference           String?
+  currencyCode        String?     @default("AUD")
+  syncUpdatedAt       DateTime?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  customer            Customer?   @relation(fields: [customerId], references: [id])
+  job                 Job?        @relation(fields: [jobId], references: [id])
+  payments            Payment[]
+
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([dueDate])
+  @@index([customerId])
+  @@index([jobId])
+}
+
+model Payment {
+  id                  String      @id @default(cuid())
+  xeroPaymentId       String?     @unique
+  invoiceId           String
+  paymentDate         DateTime
+  amount              Decimal     @db.Decimal(12, 2)
+  currencyCode        String?     @default("AUD")
+  reference           String?
+  sourceUpdatedAt     DateTime?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  invoice             Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId, paymentDate])
+}
+
+model JobAttentionFlag {
+  id                  String      @id @default(cuid())
+  jobId               String
+  type                AttentionType
+  severity            Int         @default(1)
+  message             String?
+  isResolved          Boolean     @default(false)
+  detectedAt          DateTime    @default(now())
+  resolvedAt          DateTime?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  job                 Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, type, isResolved])
+  @@index([type, isResolved])
+}
+
+model DailyMetricSnapshot {
+  id                    String      @id @default(cuid())
+  snapshotDate          DateTime
+  totalJobsCompleted    Int         @default(0)
+  totalJobsCreated      Int         @default(0)
+  totalRevenueInvoiced  Decimal     @default(0) @db.Decimal(12, 2)
+  totalCashCollected    Decimal     @default(0) @db.Decimal(12, 2)
+  totalMaterialCost     Decimal     @default(0) @db.Decimal(12, 2)
+  totalAmountOutstanding Decimal    @default(0) @db.Decimal(12, 2)
+  totalOverdueAmount    Decimal     @default(0) @db.Decimal(12, 2)
+  totalAttentionJobs    Int         @default(0)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  @@unique([snapshotDate])
+}
+
+model StaffMetricSnapshot {
+  id                    String      @id @default(cuid())
+  snapshotDate          DateTime
+  staffId               String
+
+  jobsCompleted         Int         @default(0)
+  revenueInvoiced       Decimal     @default(0) @db.Decimal(12, 2)
+  cashCollected         Decimal     @default(0) @db.Decimal(12, 2)
+  materialCost          Decimal     @default(0) @db.Decimal(12, 2)
+  averageJobValue       Decimal     @default(0) @db.Decimal(12, 2)
+  grossMarginAmount     Decimal     @default(0) @db.Decimal(12, 2)
+  grossMarginPct        Decimal     @default(0) @db.Decimal(6, 2)
+  jobsAwaitingPayment   Int         @default(0)
+  attentionJobs         Int         @default(0)
+
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  staff                 Staff       @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([snapshotDate, staffId])
+  @@index([staffId, snapshotDate])
+}
