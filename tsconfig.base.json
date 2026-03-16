@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "paths": {
+      "@dashm8/core": ["packages/core/src/index.ts"],
+      "@dashm8/core/*": ["packages/core/src/*"],
+      "@dashm8/db": ["packages/db/src/index.ts"],
+      "@dashm8/integrations-servicem8": ["packages/integrations/servicem8/src/index.ts"],
+      "@dashm8/integrations-xero": ["packages/integrations/xero/src/index.ts"],
+      "@dashm8/sync": ["packages/sync/src/index.ts"]
+    }
+  }
+}

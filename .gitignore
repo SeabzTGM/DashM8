@@ -1,0 +1,11 @@
+node_modules
+dist
+build
+coverage
+*.log
+.env
+.env.*
+!.env.example
+apps/desktop/src-tauri/target
+packages/db/prisma/dev.db
+packages/db/prisma/dev.db-journal
