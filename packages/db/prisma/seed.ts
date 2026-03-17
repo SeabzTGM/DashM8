@@ -1,4 +1,4 @@
-import { PrismaClient, JobStatus, InvoiceStatus, PaymentStatus } from "@prisma/client"
+import { PrismaClient } from "@prisma/client"
 
 const prisma = new PrismaClient()
 
@@ -7,8 +7,8 @@ async function main() {
   await prisma.invoice.deleteMany()
   await prisma.jobMaterial.deleteMany()
   await prisma.job.deleteMany()
-  await prisma.staffMetricSnapshot.deleteMany()
-  await prisma.dailyMetricSnapshot.deleteMany()
+  await prisma.staffKpiSnapshot.deleteMany()
+  await prisma.dailyKpiSnapshot.deleteMany()
   await prisma.staff.deleteMany()
   await prisma.customer.deleteMany()
 
@@ -36,8 +36,18 @@ async function main() {
   ])
 
   const [acme, smith] = await Promise.all([
-    prisma.customer.create({ data: { name: "ACME Construction", servicem8CompanyUuid: "cust-001" } }),
-    prisma.customer.create({ data: { name: "Smith Electrical", servicem8CompanyUuid: "cust-002" } })
+    prisma.customer.create({
+      data: {
+        name: "ACME Construction",
+        servicem8CompanyUuid: "cust-001"
+      }
+    }),
+    prisma.customer.create({
+      data: {
+        name: "Smith Electrical",
+        servicem8CompanyUuid: "cust-002"
+      }
+    })
   ])
 
   const now = new Date()
@@ -47,10 +57,8 @@ async function main() {
   const job1 = await prisma.job.create({
     data: {
       servicem8JobUuid: "job-001",
-      generatedJobNumber: "1001",
       title: "Aircon Install",
-      description: "Split system installation",
-      status: JobStatus.COMPLETED,
+      status: "COMPLETED",
       assignedStaffId: alex.id,
       customerId: acme.id,
       completedAt: now,
@@ -64,10 +72,8 @@ async function main() {
   const job2 = await prisma.job.create({
     data: {
       servicem8JobUuid: "job-002",
-      generatedJobNumber: "1002",
       title: "Electrical Repair",
-      description: "Fault finding and repair",
-      status: JobStatus.COMPLETED,
+      status: "COMPLETED",
       assignedStaffId: sam.id,
       customerId: smith.id,
       completedAt: twoDaysAgo,
@@ -78,34 +84,34 @@ async function main() {
     }
   })
 
-  await prisma.job.create({
-    data: {
-      servicem8JobUuid: "job-003",
-      generatedJobNumber: "1003",
-      title: "Hot Water Service",
-      description: "Scheduled replacement",
-      status: JobStatus.SCHEDULED,
-      assignedStaffId: alex.id,
-      customerId: acme.id,
-      scheduledStart: now
+await prisma.jobMaterial.createMany({
+  data: [
+    {
+      jobId: job1.id,
+      name: "Copper Pipe",
+      quantity: 5,
+      unitCost: 20,
+      totalCost: 100,
+      totalSell: 200
+    },
+    {
+      jobId: job2.id,
+      name: "Circuit Breaker",
+      quantity: 1,
+      unitCost: 50,
+      totalCost: 50,
+      totalSell: 120
     }
-  })
-
-  await prisma.jobMaterial.createMany({
-    data: [
-      { jobId: job1.id, servicem8MaterialUuid: "mat-001", name: "Copper Pipe", quantity: 5, unitCost: 20, unitSell: 40, totalCost: 100, totalSell: 200 },
-      { jobId: job2.id, servicem8MaterialUuid: "mat-002", name: "Circuit Breaker", quantity: 1, unitCost: 50, unitSell: 120, totalCost: 50, totalSell: 120 }
-    ]
-  })
+  ]
+})
 
   const invoice1 = await prisma.invoice.create({
     data: {
       xeroInvoiceId: "inv-001",
-      invoiceNumber: "1001",
       jobId: job1.id,
       customerId: acme.id,
-      status: InvoiceStatus.AUTHORISED,
-      paymentStatus: PaymentStatus.PAID,
+      status: "AUTHORISED",
+      paymentStatus: "PAID",
       total: 1200,
       amountPaid: 1200,
       amountDue: 0,
@@ -117,11 +123,10 @@ async function main() {
   await prisma.invoice.create({
     data: {
       xeroInvoiceId: "inv-002",
-      invoiceNumber: "1002",
       jobId: job2.id,
       customerId: smith.id,
-      status: InvoiceStatus.AUTHORISED,
-      paymentStatus: PaymentStatus.OVERDUE,
+      status: "AUTHORISED",
+      paymentStatus: "OVERDUE",
       total: 600,
       amountPaid: 0,
       amountDue: 600,
@@ -130,21 +135,22 @@ async function main() {
     }
   })
 
-  await prisma.payment.create({
-    data: {
-      xeroPaymentId: "pay-001",
-      invoiceId: invoice1.id,
-      paymentDate: now,
-      amount: 1200
-    }
-  })
+await prisma.payment.create({
+  data: {
+    invoiceId: invoice1.id,
+    paymentDate: now,
+    amount: 1200
+  }
+})
 
   console.log("Seed complete")
 }
 
-main().catch((error) => {
-  console.error(error)
-  process.exit(1)
-}).finally(async () => {
-  await prisma.$disconnect()
-})
+main()
+  .catch((error) => {
+    console.error(error)
+    process.exit(1)
+  })
+  .finally(async () => {
+    await prisma.$disconnect()
+  })

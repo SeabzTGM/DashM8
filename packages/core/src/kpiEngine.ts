@@ -1,4 +1,4 @@
-import { Invoice, Job, JobMaterial, Payment, PaymentStatus, Staff } from "@prisma/client"
+import type { Invoice, Job, JobMaterial, Payment, Staff } from "@prisma/client"
 
 export type DashboardDataset = {
   jobs: Job[]
@@ -60,7 +60,7 @@ export function getOverviewKpis(data: DashboardDataset, now = new Date()) {
     .filter((j) => j.completedAt && j.completedAt >= month)
     .reduce((sum, j) => sum + toNumber(j.actualMaterialCost), 0)
 
-  const awaiting = data.invoices.filter((i) => i.paymentStatus !== PaymentStatus.PAID && toNumber(i.amountDue) > 0)
+  const awaiting = data.invoices.filter((i) => i.paymentStatus !== "PAID" && toNumber(i.amountDue) > 0)
   const overdue = awaiting.filter((i) => i.dueDate && i.dueDate < today)
 
   return {
@@ -94,7 +94,7 @@ export function getStaffLeaderboard(data: DashboardDataset, now = new Date()) {
     const grossMargin = jobs.reduce((sum, j) => sum + toNumber(j.grossMarginAmount), 0)
     const awaiting = jobs.filter((job) => {
       const inv = invoicesByJobId.get(job.id) ?? []
-      return inv.some((i) => i.paymentStatus !== PaymentStatus.PAID && toNumber(i.amountDue) > 0)
+      return inv.some((i) => i.paymentStatus !== "PAID" && toNumber(i.amountDue) > 0)
     }).length
 
     return {
@@ -147,7 +147,7 @@ export function getAttentionJobs(data: DashboardDataset, now = new Date()) {
     }
 
     for (const invoice of invoices) {
-      if (invoice.paymentStatus !== PaymentStatus.PAID && toNumber(invoice.amountDue) > 0) {
+      if (invoice.paymentStatus !== "PAID" && toNumber(invoice.amountDue) > 0) {
         rows.push({
           jobId: job.id,
           title: job.title ?? "Untitled job",

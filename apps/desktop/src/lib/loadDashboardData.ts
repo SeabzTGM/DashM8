@@ -1,22 +1,66 @@
-import { prisma } from "@dashm8/db"
-import { linkCustomersById } from "@dashm8/core"
-
 export async function loadDashboardData() {
-  const [jobs, invoices, payments, materials, staff, customers] = await Promise.all([
-    prisma.job.findMany({ orderBy: { createdAt: "desc" } }),
-    prisma.invoice.findMany({ orderBy: { createdAt: "desc" } }),
-    prisma.payment.findMany({ orderBy: { createdAt: "desc" } }),
-    prisma.jobMaterial.findMany({ orderBy: { createdAt: "desc" } }),
-    prisma.staff.findMany({ orderBy: { firstName: "asc" } }),
-    prisma.customer.findMany({ orderBy: { name: "asc" } })
-  ])
+  const now = new Date()
+  const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000)
+  const tenDaysAgo = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000)
 
   return {
-    jobs,
-    invoices,
-    payments,
-    materials,
-    staff,
-    customersById: linkCustomersById(customers)
+    jobs: [
+      {
+        id: "job-1",
+        assignedStaffId: "staff-1",
+        customerId: "cust-1",
+        title: "Aircon Install",
+        completedAt: now,
+        actualRevenue: 1200,
+        actualMaterialCost: 350,
+        grossMarginAmount: 850
+      },
+      {
+        id: "job-2",
+        assignedStaffId: "staff-2",
+        customerId: "cust-2",
+        title: "Electrical Repair",
+        completedAt: twoDaysAgo,
+        actualRevenue: 600,
+        actualMaterialCost: 120,
+        grossMarginAmount: 480
+      }
+    ],
+    invoices: [
+      {
+        id: "inv-1",
+        jobId: "job-1",
+        issueDate: now,
+        dueDate: now,
+        total: 1200,
+        amountDue: 0,
+        paymentStatus: "PAID"
+      },
+      {
+        id: "inv-2",
+        jobId: "job-2",
+        issueDate: tenDaysAgo,
+        dueDate: twoDaysAgo,
+        total: 600,
+        amountDue: 600,
+        paymentStatus: "OVERDUE"
+      }
+    ],
+    payments: [
+      {
+        id: "pay-1",
+        paymentDate: now,
+        amount: 1200
+      }
+    ],
+    materials: [],
+    staff: [
+      { id: "staff-1", firstName: "Alex", lastName: "Tech", email: "alex@example.com" },
+      { id: "staff-2", firstName: "Sam", lastName: "Installer", email: "sam@example.com" }
+    ],
+    customersById: {
+      "cust-1": { name: "ACME Construction" },
+      "cust-2": { name: "Smith Electrical" }
+    }
   }
 }

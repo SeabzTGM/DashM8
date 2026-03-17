@@ -7,33 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum JobStatus {
-  QUOTE
-  WORK_ORDER
-  SCHEDULED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-  ON_HOLD
-}
-
-enum InvoiceStatus {
-  DRAFT
-  SUBMITTED
-  AUTHORISED
-  PAID
-  VOIDED
-  DELETED
-}
-
-enum PaymentStatus {
-  PENDING
-  PARTIAL
-  PAID
-  OVERDUE
-  VOIDED
-}
-
 enum AttentionType {
   COMPLETED_NOT_INVOICED
   INVOICED_NOT_PAID
@@ -91,7 +64,7 @@ model Job {
   title               String?
   description         String?
   category            String?
-  status              JobStatus
+  status              String?
   priority            String?
   requiresAttention   Boolean     @default(false)
 
@@ -173,8 +146,8 @@ model Invoice {
   xeroInvoiceId       String?     @unique
   invoiceNumber       String?
   sourceSystem        String      @default("XERO")
-  status              InvoiceStatus
-  paymentStatus       PaymentStatus @default(PENDING)
+  status              String?
+  paymentStatus       String? @default("PENDING")
 
   customerId          String?
   jobId               String?
